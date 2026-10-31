@@ -1,4 +1,3 @@
-#define _DEFAULT_SOURCE
 #include <signal.h>
 #include <sys/time.h>
 #include <unistd.h>
@@ -18,14 +17,12 @@ int main(void)
     sigemptyset(&action.sa_mask);
     if (sigaction(SIGVTALRM, &action, NULL) == -1 || setitimer(ITIMER_VIRTUAL, &timer, NULL) == -1)
         return 1;
-    for (;;)
-        ;
+    while(true){}
 }
 
 /*
 
-nilkanth@zuxxy: gcc 1b.c -o a.out
-nilkanth@zuxxy: ./a.out
+nilkanth@zuxxy: gcc 1b.c -o timer && ./timer
 ITIMER_VIRTUAL expired
 ITIMER_VIRTUAL expired
 */
