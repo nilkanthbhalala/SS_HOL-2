@@ -7,26 +7,26 @@
 static void handle_stop(int signo)
 {
     (void)signo;
-    puts("SIGSTOP caught");
+    puts("SIGSTOP caught form Program 13b.c");
+    _exit(1);
 }
 
-int main(void)
+int main()
 {
     struct sigaction action = {0};
     action.sa_handler = handle_stop;
     sigemptyset(&action.sa_mask);
+
     printf("Process ID: %ld\n", (long)getpid());
-    if (sigaction(SIGSTOP, &action, NULL) == -1)
-        printf("SIGSTOP cannot be caught (sigaction: %s)\n", strerror(errno));
+    sigaction(SIGSTOP, &action, NULL);
+    
+    for (;;) ;
     fflush(stdout);
-    for (;;)
-        pause();
 }
 
 /*
 
-nilkanth@zuxxy: gcc 13a.c -o 13a.out
-nilkanth@zuxxy: ./13a.out
+nilkanth@zuxxy: gcc 13a.c && ./a.out 
 Process ID: 169157
 SIGSTOP cannot be caught (sigaction: Invalid argument)
 */

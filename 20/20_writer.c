@@ -16,29 +16,31 @@ static int ensure_fifo(void)
     return -1;
 }
 
-int main(void)
+int main(int argc, char *argv[])
 {
+    char *message;
+    if(argc != 2)
+        return 1;
+    else
+        message = argv[1];   
+
+
     if (ensure_fifo() == -1)
         return 1;
+
     int fd = open("fifo20", O_WRONLY);
-    if (fd == -1) {
-        perror("open");
-        return 1;
-    }
-    const char message[] = "One-way FIFO message";
-    if (write(fd, message, sizeof(message)) == -1) {
+    if (write(fd, message, strlen(message)) == -1) {
         perror("write");
         close(fd);
         return 1;
     }
-    printf("Sent: %s\n", message);
+    printf("Sent\n");
     close(fd);
     return 0;
 }
 
 /*
 
-nilkanth@zuxxy: gcc 20_writer.c -o 20_writer.out
-nilkanth@zuxxy: ./20_writer.out
-Sent: One-way FIFO message
+nilkanth@zuxxy: gcc 20_writer.c && ./a.out "This is first msg from writer side"
+Sent
 */

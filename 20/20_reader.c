@@ -5,7 +5,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-static int ensure_fifo(void)
+static int ensure_fifo()
 {
     struct stat info;
     if (mkfifo("fifo20", 0660) == 0 || errno == EEXIST) {
@@ -16,22 +16,21 @@ static int ensure_fifo(void)
     return -1;
 }
 
-int main(void)
+int main()
 {
     if (ensure_fifo() == -1)
-        return 1;
+        return 0;
+
     int fd = open("fifo20", O_RDONLY);
-    if (fd == -1) {
-        perror("open");
-        return 1;
-    }
     char buffer[256];
+
     ssize_t count = read(fd, buffer, sizeof(buffer) - 1);
     if (count == -1) {
         perror("read");
         close(fd);
         return 1;
     }
+
     buffer[count] = '\0';
     printf("Received: %s\n", buffer);
     close(fd);
@@ -39,8 +38,6 @@ int main(void)
 }
 
 /*
-
-nilkanth@zuxxy: gcc 20_reader.c -o 20_reader.out
-nilkanth@zuxxy: ./20_reader.out
-Received: One-way FIFO message
+nilkanth@zuxxy: gcc 20_reader.c && ./a.out
+Received: This is first msg from writer side
 */

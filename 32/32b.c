@@ -1,40 +1,57 @@
-#define _DEFAULT_SOURCE
-#include <fcntl.h>
-#include <semaphore.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
-#include <unistd.h>
+#include <semaphore.h>
 
-#define SHM_NAME "/q32_shared_data"
-#define SEM_NAME "/q32_shared_lock"
+#define SHM_NAME "/ticket_shm"
+#define SEM_NAME "/ticket_mutex"
 
-int main(void)
+typedef struct
 {
-    int fd = shm_open(SHM_NAME, O_CREAT | O_RDWR, 0600);
-    if (fd == -1) { perror("shm_open"); return 1; }
-    sem_t *lock = sem_open(SEM_NAME, O_CREAT, 0600, 1);
-    if (lock == SEM_FAILED) { perror("sem_open"); close(fd); return 1; }
-    if (sem_wait(lock) == -1) { perror("sem_wait"); return 1; }
-    struct stat info;
-    if (fstat(fd, &info) == -1) { perror("fstat"); return 1; }
-    if (info.st_size < (off_t)sizeof(int) && ftruncate(fd, sizeof(int)) == -1) {
-        perror("ftruncate"); return 1;
-    }
-    int *value = mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (value == MAP_FAILED) { perror("mmap"); return 1; }
-    ++*value;
-    printf("Protected shared value: %d\n", *value);
-    munmap(value, sizeof(int));
-    sem_post(lock);
-    sem_close(lock);
-    close(fd);
+    int ticket_no;
+} database_t;
+
+int main()
+{
+    int shm_fd;
+    database_t *db;
+    sem_t *mutex;
+
+    shm_fd = shm_open(SHM_NAME, O_CREAT | O_RDWR, 0666);
+    ftruncate(shm_fd, sizeof(database_t));
+
+    db = mmap(0, sizeof(database_t), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    mutex = sem_open(SEM_NAME, O_CREAT, 0644, 1);
+
+    printf("Process %d: waiting to enter critical section...\n", getpid());
+    sem_wait(mutex);
+
+    printf("Process %d: inside critical section (holding lock)\n", getpid());
+    printf("Process %d: Current ticket number = %d\n", getpid(), db->ticket_no);
+
+    sleep(10);
+
+    db->ticket_no++;
+    printf("Process %d: New ticket number written = %d\n", getpid(), db->ticket_no);
+
+    printf("Process %d: leaving critical section...\n", getpid());
+    sem_post(mutex);
+
+    munmap(db, sizeof(database_t));
+    close(shm_fd);
+    sem_close(mutex);
+
     return 0;
 }
 
 /*
-
-nilkanth@zuxxy: gcc 32b.c -o a.out
-nilkanth@zuxxy: ./a.out
-Protected shared value: 1
+nilkanth@zuxxy:$ gcc 32b.c && ./a.out
+Process 200624: waiting to enter critical section...
+Process 200624: inside critical section (holding lock)
+Process 200624: Current ticket number = 1
+Process 200624: New ticket number written = 2
+Process 200624: leaving critical section...
 */

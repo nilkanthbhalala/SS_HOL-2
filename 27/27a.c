@@ -1,26 +1,30 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
 
-#define QUEUE_KEY ((key_t)0x514c4932)
-
-struct message { long type; char text[257]; };
-
-int main(void)
+struct msg_buffer
 {
-    int id = msgget(QUEUE_KEY, IPC_CREAT | 0660);
-    if (id == -1) { perror("msgget"); return 1; }
-    struct message message;
-    ssize_t length = msgrcv(id, &message, sizeof(message.text) - 1, 0, 0);
-    if (length == -1) { perror("msgrcv"); return 1; }
-    message.text[length] = '\0';
-    printf("Received: %s\n", message.text);
+    long msg_type;
+    char msg_text[100];
+};
+
+int main()
+{
+    key_t key;
+    int msgid;
+    struct msg_buffer message;
+    key = ftok("progfile", 65);
+
+    msgid = msgget(key, 0666 | IPC_CREAT);
+    msgrcv(msgid, &message, sizeof(message.msg_text), 0, 0);
+    printf("Received: %s\n", message.msg_text);
     return 0;
 }
 
 /*
 
-nilkanth@zuxxy: gcc 27a.c -o a.out
-nilkanth@zuxxy: ./a.out
-Received: Message sent to the System V queue
+nilkanth@zuxxy: gcc 27a.c && ./a.out
+Received: Hello from sender!
 */

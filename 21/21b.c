@@ -1,5 +1,8 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include <errno.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -16,28 +19,74 @@ static int ensure_fifo(const char *path)
     return -1;
 }
 
-int main(void)
+int main()
 {
-    if (ensure_fifo("fifo21_ab") || ensure_fifo("fifo21_ba"))
+    if (ensure_fifo("fifo21_ab") == -1 || ensure_fifo("fifo21_ba") == -1)
         return 1;
+
     int incoming = open("fifo21_ab", O_RDONLY);
-    if (incoming == -1) { perror("open fifo21_ab"); return 1; }
     int outgoing = open("fifo21_ba", O_WRONLY);
-    if (outgoing == -1) { perror("open fifo21_ba"); return 1; }
-    char message[128];
-    ssize_t count = read(incoming, message, sizeof(message) - 1);
-    if (count < 0) { perror("read"); return 1; }
-    message[count] = '\0';
-    printf("B received: %s\n", message);
-    const char reply[] = "Reply from process B";
-    if (write(outgoing, reply, sizeof(reply)) == -1) { perror("write"); return 1; }
-    close(incoming); close(outgoing);
+
+    while (1) {
+
+        char choice[32];
+        printf("\nRead: 1, Write: 2, Exit: 3\n");
+        printf("Process B: Enter your preference: ");
+        fflush(stdout);
+
+        if (fgets(choice, sizeof(choice), stdin) == NULL)
+            break;
+
+        if (strcmp(choice, "1\n") == 0) {
+
+            char reply[128];
+            ssize_t count = read(incoming, reply, sizeof(reply) - 1);
+
+            if (count == 0) {
+                puts("Process A closed its writing end");
+                break;
+            }
+            reply[count] = '\0';
+            printf("B received: %s", reply);
+
+        } 
+        else if (strcmp(choice, "2\n") == 0) {
+
+            char buffer[100];
+            printf("Process B: Enter message: ");
+            fflush(stdout);
+
+            fgets(buffer, sizeof(buffer), stdin);
+            write(outgoing, buffer, strlen(buffer));
+            puts("Sent");
+
+        } 
+        else if (strcmp(choice, "3\n") == 0) {
+            break;
+
+        } 
+        else {
+            puts("Choose 1, 2, or 3.");
+        }
+    }
+
+    close(incoming);
+    close(outgoing);
+
     return 0;
 }
 
 /*
+nilkanth@zuxxy: gcc 21b.c && ./a.out 
 
-nilkanth@zuxxy: gcc 21b.c -o 21b.out
-nilkanth@zuxxy: ./21b.out
-B received: Message from process A
+Read: 1, Write: 2, Exit: 3
+Process B: Enter your preference: 2
+Process B: Enter message: Hello
+Sent
+
+Read: 1, Write: 2, Exit: 3
+Process B: Enter your preference: 2
+Process B: Enter message: i am here     
+Sent
+
 */

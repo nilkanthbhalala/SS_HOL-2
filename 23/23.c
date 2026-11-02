@@ -4,28 +4,24 @@
 #include <sys/resource.h>
 #include <unistd.h>
 
-int main(void)
+int main()
 {
     struct rlimit limit;
-    if (getrlimit(RLIMIT_NOFILE, &limit) == -1) {
-        perror("getrlimit");
-        return 1;
+    if (getrlimit(RLIMIT_NOFILE, &limit) == 0)
+    {
+        printf("Max open files (soft limit): %ld\n", limit.rlim_cur);
+        printf("Max open files (hard limit): %ld\n", limit.rlim_max);
     }
-    printf("Maximum open files per process: %llu\n", (unsigned long long)limit.rlim_cur);
+
     int channel[2];
-    if (pipe(channel) == -1) {
-        perror("pipe");
-        return 1;
-    }
-#ifdef F_GETPIPE_SZ
+    pipe(channel);
+
     int size = fcntl(channel[0], F_GETPIPE_SZ);
     if (size == -1)
         perror("F_GETPIPE_SZ");
     else
         printf("Pipe capacity: %d bytes\n", size);
-#else
-    puts("Pipe capacity query is unavailable on this system");
-#endif
+
     close(channel[0]);
     close(channel[1]);
     return 0;
@@ -33,8 +29,8 @@ int main(void)
 
 /*
 
-nilkanth@zuxxy: gcc 23.c -o a.out
-nilkanth@zuxxy: ./a.out
-Maximum open files per process: 524288
+nilkanth@zuxxy: gcc 23.c && ./a.out 
+Max open files (soft limit): 524288
+Max open files (hard limit): 524288
 Pipe capacity: 65536 bytes
 */

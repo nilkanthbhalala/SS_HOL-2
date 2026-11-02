@@ -2,20 +2,21 @@
 #include <sys/ipc.h>
 #include <sys/msg.h>
 
-#define QUEUE_KEY ((key_t)0x514c4932)
-
-int main(void)
+int main()
 {
-    int id = msgget(QUEUE_KEY, 0660);
-    if (id == -1) { perror("msgget"); return 1; }
-    if (msgctl(id, IPC_RMID, NULL) == -1) { perror("IPC_RMID"); return 1; }
-    printf("Removed message queue %d\n", id);
+    key_t key;
+    int msgid;
+
+    key = ftok("progfile", 65);
+    msgid = msgget(key, 0666 | IPC_CREAT);
+    msgctl(msgid, IPC_RMID, NULL);
+    printf("Message queue removed successfully.\n");
+
     return 0;
 }
 
 /*
 
-nilkanth@zuxxy: gcc 29.c -o a.out
-nilkanth@zuxxy: ./a.out
-Removed message queue 2
+nilkanth@zuxxy: gcc 29.c && ./a.out
+Message queue removed successfully.
 */

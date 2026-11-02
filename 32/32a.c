@@ -1,44 +1,66 @@
 #include <fcntl.h>
-#include <pthread.h>
-#include <semaphore.h>
-#include <stdio.h>
-#include <sys/stat.h>
 #include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <semaphore.h>
+#include <sys/stat.h>
 
-#define SEM_NAME "/q32_ticket_lock"
-#define DATA_FILE "ticket.dat"
+#define SEM_NAME "/ticket_mutex"
+#define DB_FILE "database"
 
-int main(void)
+int main()
 {
-    sem_t *lock = sem_open(SEM_NAME, O_CREAT, 0600, 1);
-    if (lock == SEM_FAILED) { perror("sem_open"); return 1; }
-    if (sem_wait(lock) == -1) { perror("sem_wait"); return 1; }
-    int fd = open(DATA_FILE, O_RDWR | O_CREAT, 0600);
-    if (fd == -1) { perror("open"); sem_post(lock); return 1; }
-    struct stat info;
-    int ticket = 0;
-    if (fstat(fd, &info) == -1) { perror("fstat"); close(fd); sem_post(lock); return 1; }
-    if (info.st_size >= (off_t)sizeof(ticket)) {
-        if (pread(fd, &ticket, sizeof(ticket), 0) != sizeof(ticket)) {
-            perror("pread"); close(fd); sem_post(lock); return 1;
-        }
-    }
-    printf("Current ticket: %d\n", ticket);
-    ++ticket;
-    if (pwrite(fd, &ticket, sizeof(ticket), 0) != sizeof(ticket)) {
-        perror("pwrite"); close(fd); sem_post(lock); return 1;
-    }
-    printf("Issued ticket: %d\n", ticket);
+    sem_t *mutex;
+    int fd;
+
+    struct
+    {   
+        int ticket_no;
+    }database;
+
+    mutex = sem_open(SEM_NAME, O_CREAT, 0644, 1);
+
+    printf("Process %d: waiting to enter critical section...\n", getpid());
+    sem_wait(mutex);
+
+    printf("Process %d: inside critical section (holding lock)\n", getpid());
+    fd = open(DB_FILE, O_RDWR);
+    read(fd, &database, sizeof(database));
+    printf("Process %d: Current ticket number = %d\n", getpid(), database.ticket_no);
+
+    sleep(10);
+    database.ticket_no++;
+    lseek(fd, 0, SEEK_SET);
+    write(fd, &database, sizeof(database));
+    fsync(fd);
+
+    printf("Process %d: New ticket number written = %d\n", getpid(), database.ticket_no);
+
     close(fd);
-    sem_post(lock);
-    sem_close(lock);
+
+    printf("Process %d: leaving critical section...\n", getpid());
+    sem_post(mutex);
+
+    sem_close(mutex);
     return 0;
 }
 
 /*
+Terminal:1 
+gcc 32a.c && ./a.out
+Process 200313: waiting to enter critical section...
+Process 200313: inside critical section (holding lock)
+Process 200313: Current ticket number = 3
+Process 200313: New ticket number written = 4
+Process 200313: leaving critical section...
 
-nilkanth@zuxxy: gcc 32a.c -o a.out
-nilkanth@zuxxy: ./a.out
-Current ticket: 0
-Issued ticket: 1
+
+Terminal:2 
+gcc 32a.c && ./a.out
+Process 200349: waiting to enter critical section...
+Process 200349: inside critical section (holding lock)
+Process 200349: Current ticket number = 4
+Process 200349: New ticket number written = 5
+Process 200349: leaving critical section...
+
 */

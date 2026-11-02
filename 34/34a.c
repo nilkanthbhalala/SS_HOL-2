@@ -1,63 +1,55 @@
-#define _POSIX_C_SOURCE 200809L
-#include <arpa/inet.h>
-#include <signal.h>
 #include <stdio.h>
-#include <sys/socket.h>
-#include <sys/wait.h>
 #include <unistd.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
 
-#define PORT 8081
-#define BUFFER_SIZE 1024
+#define PORT 8080
 
-static void serve_client(int client)
+void handle_client(int client_sock)
 {
-    char buffer[BUFFER_SIZE];
-    ssize_t count;
-    while ((count = read(client, buffer, sizeof(buffer))) > 0) {
-        ssize_t sent = 0;
-        while (sent < count) {
-            ssize_t result = write(client, buffer + sent, (size_t)(count - sent));
-            if (result <= 0) return;
-            sent += result;
-        }
+    char buffer[1024];
+    int n;
+    while ((n = read(client_sock, buffer, 1024)) > 0)
+    {
+        write(client_sock, buffer, n);
     }
-    close(client);
+    close(client_sock);
 }
 
-int main(void)
+int main()
 {
-    int server = socket(AF_INET, SOCK_STREAM, 0);
-    if (server == -1) { perror("socket"); return 1; }
-    int reuse = 1;
-    setsockopt(server, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
-    struct sockaddr_in address = {0};
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = htonl(INADDR_ANY);
-    address.sin_port = htons(PORT);
-    if (bind(server, (struct sockaddr *)&address, sizeof(address)) == -1 || listen(server, 16) == -1) {
-        perror("bind/listen"); close(server); return 1;
-    }
-    signal(SIGCHLD, SIG_IGN);
-    printf("Fork server listening on port %d\n", PORT);
-    for (;;) {
-        int client = accept(server, NULL, NULL);
-        if (client == -1) { perror("accept"); continue; }
-        pid_t child = fork();
-        if (child == -1) { perror("fork"); close(client); continue; }
-        if (child == 0) {
-            close(server);
-            serve_client(client);
-            _exit(0);
+    int server_sock = socket(AF_INET, SOCK_STREAM, 0);
+
+    struct sockaddr_in server_addr;
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = INADDR_ANY;
+    server_addr.sin_port = htons(PORT);
+
+    bind(server_sock, (struct sockaddr *)&server_addr, sizeof(server_addr));
+    listen(server_sock, 5);
+
+    while (1)
+    {
+        int client_sock = accept(server_sock, NULL, NULL);
+        if (fork() == 0)
+        {
+            close(server_sock);
+            handle_client(client_sock);
+            return 0;
         }
-        close(client);
+        close(client_sock);
     }
 }
 
 /*
+server is running:
+gcc 34a.c -o server && ./server 
 
-nilkanth@zuxxy: gcc 34a.c -o 34a.out
-nilkanth@zuxxy: ./34a.out
-Fork server listening on port 8081
-nilkanth@zuxxy: printf 'hello from nc\n' | nc -N 127.0.0.1 8081
-hello from nc
+client side 1:
+nc 127.0.0.1 8080
+hellow
+hellow
+hi
+hi
+
 */

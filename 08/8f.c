@@ -17,10 +17,9 @@ static void handle_alarm(int signo)
 int main(void)
 {
     struct itimerval timer = {{1, 0}, {1, 0}};
-    if (signal(SIGVTALRM, handle_alarm) == SIG_ERR || setitimer(ITIMER_VIRTUAL, &timer, NULL) == -1)
-        return 1;
-    for (;;)
-        ;
+    signal(SIGVTALRM, handle_alarm);
+    setitimer(ITIMER_VIRTUAL, &timer, NULL);
+    for (;;);
 }
 
 /*

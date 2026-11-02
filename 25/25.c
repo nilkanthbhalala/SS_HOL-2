@@ -1,56 +1,48 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <time.h>
-
-#define QUEUE_KEY ((key_t)0x514c4932)
-
-static void show_time(const char *label, time_t value)
+int main()
 {
-    printf("%s: ", label);
-    if (value == 0)
-        puts("never");
-    else
-        printf("%s", ctime(&value));
-}
 
-int main(void)
-{
-    int id = msgget(QUEUE_KEY, IPC_CREAT | 0660);
-    if (id == -1) {
-        perror("msgget");
-        return 1;
-    }
-    struct msqid_ds info;
-    if (msgctl(id, IPC_STAT, &info) == -1) {
-        perror("msgctl");
-        return 1;
-    }
-    printf("Queue ID: %d\nPermissions: %04o\nUID: %u GID: %u\n",
-           id, info.msg_perm.mode & 0777, info.msg_perm.uid, info.msg_perm.gid);
-    show_time("Last message sent", info.msg_stime);
-    show_time("Last message received", info.msg_rtime);
-    show_time("Last queue change", info.msg_ctime);
-    printf("Current queue bytes: %lu\nMessages: %lu\nMaximum bytes: %lu\n",
-           (unsigned long)info.msg_cbytes, (unsigned long)info.msg_qnum,
-           (unsigned long)info.msg_qbytes);
-    printf("Last msgsnd PID: %d\nLast msgrcv PID: %d\n", info.msg_lspid, info.msg_lrpid);
+    struct msqid_ds buf;
+
+    key_t key = ftok("msgfile", 65);
+    int msqid = msgget(key, 0666 | IPC_CREAT);
+
+    msgctl(msqid, IPC_STAT, &buf);
+
+    printf("Access Permissions: %o\n", buf.msg_perm.mode);
+    printf("UID: %d\n", buf.msg_perm.uid);
+    printf("GID: %d\n", buf.msg_perm.gid);
+
+    printf("Last msg sent time: %s", buf.msg_stime ? ctime(&buf.msg_stime) : "Not yet\n");
+    printf("Last msg received time: %s", buf.msg_rtime ? ctime(&buf.msg_rtime) : "Not yet\n");
+    printf("Last change time: %s", ctime(&buf.msg_ctime));
+
+    printf("Current number of bytes in queue: %lu\n", buf.msg_cbytes);
+    printf("Number of messages in queue: %lu\n", buf.msg_qnum);
+    printf("Max bytes allowed: %lu\n", buf.msg_qbytes);
+
+    printf("PID of last msgsnd: %d\n", buf.msg_lspid);
+    printf("PID of last msgrcv: %d\n", buf.msg_lrpid);
+
     return 0;
 }
 
 /*
 
-nilkanth@zuxxy: gcc 25.c -o a.out
-nilkanth@zuxxy: ./a.out
-Queue ID: 2
-Permissions: 0660
-UID: 1000 GID: 1000
-Last message sent: Sun Oct 25 17:01:04 2026
-Last message received: never
-Last queue change: Sun Oct 25 17:01:04 2026
-Current queue bytes: 35
-Messages: 1
-Maximum bytes: 16384
-Last msgsnd PID: 169279
-Last msgrcv PID: 0
+nilkanth@zuxxy: gcc 25.c && ./a.out 
+Access Permissions: 666
+UID: 1000
+GID: 1000
+Last msg sent time: Not yet
+Last msg received time: Not yet
+Last change time: Mon Nov  2 16:40:37 2026
+Current number of bytes in queue: 0
+Number of messages in queue: 0
+Max bytes allowed: 16384
+PID of last msgsnd: 0
+PID of last msgrcv: 0
 */

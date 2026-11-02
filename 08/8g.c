@@ -5,7 +5,7 @@
 
 static volatile sig_atomic_t count;
 
-static void handle_alarm(int signo)
+void handle_alarm(int signo)
 {
     const char message[] = "Caught SIGPROF from ITIMER_PROF\n";
     (void)signo;
@@ -14,13 +14,12 @@ static void handle_alarm(int signo)
         _exit(0);
 }
 
-int main(void)
+int main()
 {
     struct itimerval timer = {{1, 0}, {1, 0}};
-    if (signal(SIGPROF, handle_alarm) == SIG_ERR || setitimer(ITIMER_PROF, &timer, NULL) == -1)
-        return 1;
-    for (;;)
-        ;
+    signal(SIGPROF, handle_alarm);
+    setitimer(ITIMER_PROF, &timer, NULL);
+    for (;;) ;
 }
 
 /*

@@ -1,70 +1,80 @@
-#define _POSIX_C_SOURCE 200809L
-#include <arpa/inet.h>
-#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <sys/socket.h>
 #include <unistd.h>
+#include <arpa/inet.h>
+#include <pthread.h>
+#include <sys/socket.h>
 
-#define PORT 8082
+#define PORT 8080
 #define BUFFER_SIZE 1024
 
-static void *serve_client(void *argument)
+void *handle_client(void *arg)
 {
-    int client = *(int *)argument;
-    free(argument);
+    int client_sock = *((int *)arg);
+    free(arg);
+    printf("Thread %ld: started for client socket %d\n", pthread_self(), client_sock);
+
     char buffer[BUFFER_SIZE];
-    ssize_t count;
-    while ((count = read(client, buffer, sizeof(buffer))) > 0) {
-        ssize_t sent = 0;
-        while (sent < count) {
-            ssize_t result = write(client, buffer + sent, (size_t)(count - sent));
-            if (result <= 0) { close(client); return NULL; }
-            sent += result;
-        }
+    int n;
+
+    while ((n = read(client_sock, buffer, BUFFER_SIZE - 1)) > 0)
+    {
+        buffer[n] = '\0';
+        printf("Thread %ld: received '%s'\n", pthread_self(), buffer);
+        write(client_sock, buffer, n);
     }
-    close(client);
+
+    printf("Thread %ld: client disconnected, closing socket %d\n", pthread_self(), client_sock);
+    close(client_sock);
     return NULL;
 }
 
-int main(void)
+int main()
 {
-    int server = socket(AF_INET, SOCK_STREAM, 0);
-    if (server == -1) { perror("socket"); return 1; }
-    int reuse = 1;
-    setsockopt(server, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
-    struct sockaddr_in address = {0};
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = htonl(INADDR_ANY);
-    address.sin_port = htons(PORT);
-    if (bind(server, (struct sockaddr *)&address, sizeof(address)) == -1 || listen(server, 16) == -1) {
-        perror("bind/listen"); close(server); return 1;
+    int server_sock = socket(AF_INET, SOCK_STREAM, 0);
+
+    struct sockaddr_in server_addr;
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = INADDR_ANY;
+    server_addr.sin_port = htons(PORT);
+
+    bind(server_sock, (struct sockaddr *)&server_addr, sizeof(server_addr));
+    listen(server_sock, 5);
+
+    printf("Server listening on port %d...\n", PORT);
+
+    while (1)
+    {
+        int client_sock = accept(server_sock, NULL, NULL);
+        printf("Main thread: client connected, socket=%d\n", client_sock);
+
+        int *pclient = malloc(sizeof(int));
+        *pclient = client_sock;
+
+        pthread_t tid;
+        pthread_create(&tid, NULL, handle_client, pclient);
+        pthread_detach(tid);
     }
-    printf("Pthread server listening on port %d\n", PORT);
-    for (;;) {
-        int client = accept(server, NULL, NULL);
-        if (client == -1) { perror("accept"); continue; }
-        int *argument = malloc(sizeof(*argument));
-        if (argument == NULL) { perror("malloc"); close(client); continue; }
-        *argument = client;
-        pthread_t thread;
-        int error = pthread_create(&thread, NULL, serve_client, argument);
-        if (error != 0) {
-            fprintf(stderr, "pthread_create: %s\n", strerror(error));
-            free(argument);
-            close(client);
-            continue;
-        }
-        pthread_detach(thread);
-    }
+
+    close(server_sock);
+    return 0;
 }
 
 /*
+Thread Server:
+gcc 34b.c -pthread -o pthread_server && ./pthread_server 
+Server listening on port 8080...
+Thread 123950891792064: started for client socket 4
+Thread 123950891792064: received 'hi
+'
+Thread 123950891792064: received 'Hellow
+'
 
-nilkanth@zuxxy: gcc -pthread 34b.c -o 34b.out
-nilkanth@zuxxy: ./34b.out
-Pthread server listening on port 8082
-nilkanth@zuxxy: printf 'hello from nc\n' | nc -N 127.0.0.1 8082
-hello from nc
+
+Client 1:
+nc 127.0.0.1 8080
+hi
+hi
+Hellow
+Hellow
 */

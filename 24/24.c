@@ -2,23 +2,21 @@
 #include <sys/ipc.h>
 #include <sys/msg.h>
 
-#define QUEUE_KEY ((key_t)0x514c4932)
-
-int main(void)
+int main()
 {
-    int id = msgget(QUEUE_KEY, IPC_CREAT | 0660);
-    if (id == -1) {
-        perror("msgget");
-        return 1;
-    }
-    printf("Key: 0x%lx\nQueue ID: %d\n", (unsigned long)QUEUE_KEY, id);
+
+    key_t key = ftok("key_progfile", 65);
+    int msgid = msgget(key, 0666 | IPC_CREAT);
+
+    printf("Message Queue Key: %d\n", key);
+    printf("Message Queue ID: %d\n", msgid);
+
     return 0;
 }
 
 /*
 
-nilkanth@zuxxy: gcc 24.c -o a.out
-nilkanth@zuxxy: ./a.out
-Key: 0x514c4932
-Queue ID: 2
+nilkanth@zuxxy: gcc 24.c && ./a.out 
+Message Queue Key: 1090650554
+Message Queue ID: 1
 */

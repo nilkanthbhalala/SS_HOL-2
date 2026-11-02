@@ -12,14 +12,20 @@ static void handle_alarm(int signo)
 int main(void)
 {
     signal(SIGALRM, handle_alarm);
-    alarm(2);
-    for (;;)
-        pause();
+    alarm(3);
+
+    for (;;){
+        write(1, "Waiting..\n", 10);
+        sleep(1);
+    }
+    _exit(1);
 }
 
 /*
 
-nilkanth@zuxxy: gcc 8d.c -o a.out
-nilkanth@zuxxy: ./a.out
+nilkanth@zuxxy:  gcc 8d.c && ./a.out
+Waiting..
+Waiting..
+Waiting..
 Caught SIGALRM from alarm()
 */

@@ -14,15 +14,16 @@ int main(void)
     struct sigaction action = {0};
     action.sa_handler = handle_signal;
     sigemptyset(&action.sa_mask);
-    if (sigaction(SIGSEGV, &action, NULL) == -1)
-        return 1;
-    raise(SIGSEGV);
+    sigaction(SIGSEGV, &action, NULL);
+    
+    // raise(SIGSEGV);
+    int *p = NULL;
+    *p = 42;
     return 0;
 }
 
 /*
 
-nilkanth@zuxxy: gcc 10a.c -o a.out
-nilkanth@zuxxy: ./a.out
+nilkanth@zuxxy: gcc 10a.c && ./a.out 
 Caught SIGSEGV with sigaction
 */

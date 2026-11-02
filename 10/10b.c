@@ -9,13 +9,13 @@ static void handle_signal(int signo)
     _exit(0);
 }
 
-int main(void)
+int main()
 {
     struct sigaction action = {0};
     action.sa_handler = handle_signal;
     sigemptyset(&action.sa_mask);
-    if (sigaction(SIGINT, &action, NULL) == -1)
-        return 1;
+    sigaction(SIGINT, &action, NULL);
+    
     raise(SIGINT);
     return 0;
 }

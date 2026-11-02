@@ -14,8 +14,8 @@ int main(void)
     struct sigaction action = {0};
     action.sa_handler = handle_signal;
     sigemptyset(&action.sa_mask);
-    if (sigaction(SIGFPE, &action, NULL) == -1)
-        return 1;
+    sigaction(SIGFPE, &action, NULL);
+    
     raise(SIGFPE);
     return 0;
 }

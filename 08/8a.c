@@ -1,24 +1,23 @@
 #include <signal.h>
 #include <unistd.h>
+#include <stdlib.h>
 
-static void handle_signal(int signo)
+void handle_signal(int signo)
 {
-    const char message[] = "Caught SIGSEGV\n";
+    const char message[] = "Caught SIGSEGV: Invalid memory access\n";
     (void)signo;
     write(STDOUT_FILENO, message, sizeof(message) - 1);
-    _exit(0);
+    exit(0);
 }
 
-int main(void)
+int main()
 {
-    signal(SIGSEGV, handle_signal);
+    signal(SIGSEGV, handle_signal); 
     raise(SIGSEGV);
     return 0;
 }
 
 /*
-
-nilkanth@zuxxy: gcc 8a.c -o a.out
-nilkanth@zuxxy: ./a.out
-Caught SIGSEGV
+nilkanth@zuxxy: gcc 8a.c && ./a.out
+Caught SIGSEGV: Invalid memory access
 */

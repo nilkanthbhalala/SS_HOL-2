@@ -1,34 +1,32 @@
-#include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
 
-#define QUEUE_KEY ((key_t)0x514c4932)
-
-struct message { long type; char text[257]; };
-
-int main(void)
+struct msg_buffer
 {
-    int id = msgget(QUEUE_KEY, IPC_CREAT | 0660);
-    if (id == -1) { perror("msgget"); return 1; }
-    struct message message;
-    ssize_t length = msgrcv(id, &message, sizeof(message.text) - 1, 0, IPC_NOWAIT);
-    if (length == -1) {
-        if (errno == ENOMSG) {
-            puts("No message is currently available");
-            return 0;
-        }
-        perror("msgrcv");
-        return 1;
+    long msg_type;
+    char msg_text[100];
+};
+
+int main()
+{
+    key_t key;
+    int msgid;
+    struct msg_buffer message;
+
+    key = ftok("progfile", 65);
+    msgid = msgget(key, 0666 | IPC_CREAT);
+
+    if (msgrcv(msgid, &message, sizeof(message.msg_text), 0, IPC_NOWAIT) != -1)
+    {
+        printf("Received: %s\n", message.msg_text);
     }
-    message.text[length] = '\0';
-    printf("Received: %s\n", message.text);
     return 0;
 }
 
 /*
-
-nilkanth@zuxxy: gcc 27b.c -o a.out
-nilkanth@zuxxy: ./a.out
-No message is currently available
+nilkanth@zuxxy: gcc 27b.c && ./a.out
+Received: Hello from sender!
 */
